@@ -1,0 +1,22 @@
+[package]
+name = "mo_renderpass"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "mo_renderpass"
+crate-type = ["lib", "cdylib"]
+
+[dependencies]
+mo_vk = { path = "../mo_vk" }
+mo_ecs = { path = "../mo_ecs" }
+
+vulkano = "0.35.1"
+vulkano-shaders = "0.35.0"
+winit = { version = "0.30.9", features = ["rwh_06"] }
+
+tracing = "0.1.41"
+bevy_ecs = "0.15.3"
+bevy_math = "0.15.3"
+downcast-rs = "2.0.1"
+foldhash = "0.1.4"

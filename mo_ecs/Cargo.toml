@@ -1,0 +1,24 @@
+[package]
+name = "mo_ecs"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "mo_ecs"
+crate-type = ["lib", "cdylib"]
+
+[dependencies]
+mo_vk = { path = "../mo_vk" }
+
+vulkano = "0.35.1"
+vulkano-shaders = "0.35.0"
+
+tracing = "0.1.41"
+bevy_ecs = "0.15.3"
+bevy_math = "0.15.3"
+
+winit = { version = "0.30.9", features = ["rwh_06"] }
+foldhash = "0.1.4"
+
+image = "0.25.5"
+gltf = { version = "1.4.1" }

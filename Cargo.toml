@@ -1,0 +1,30 @@
+[package]
+name = "moengine"
+edition = "2024"
+
+[lib]
+name = "moengine"
+path = "src/lib.rs"
+
+[workspace]
+members = ["mo_core", "mo_vk", "mo_ecs", "mo_renderpass"]
+resolver = "2"
+
+[profile.dev]
+opt-level = 0
+
+[dependencies]
+mo_core = { path = "./mo_core" }
+mo_vk = { path = "./mo_vk" }
+mo_ecs = { path = "./mo_ecs" }
+mo_renderpass = { path = "mo_renderpass" }
+
+# for examples
+tracing = "0.1.41"
+bevy_ecs = "0.15.3"
+bevy_math = "0.15.3"
+winit = { version = "0.30.9", features = ["rwh_06"] }
+
+[[example]]
+name = "app_test"
+path = "examples/app_test/main.rs"

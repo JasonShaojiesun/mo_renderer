@@ -1,0 +1,20 @@
+[package]
+name = "mo_vk"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "mo_vk"
+crate-type = ["lib", "cdylib"]
+
+[dependencies]
+vulkano = "0.35.1"
+vulkano-shaders = "0.35.0"
+
+tracing = "0.1.41"
+
+foldhash = "0.1.4"
+winit = { version = "0.30.9", features = ["rwh_06"] }
+bevy_ecs = "0.15.3"
+bevy_math = "0.15.3"
+image = "0.25.5"

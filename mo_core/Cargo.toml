@@ -1,0 +1,31 @@
+[package]
+name = "mo_core"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "mo_core"
+crate-type = ["lib", "cdylib"]
+
+[dependencies]
+mo_renderpass = { path = "../mo_renderpass" }
+mo_vk = { path = "../mo_vk" }
+mo_ecs = { path = "../mo_ecs" }
+
+vulkano = "0.35.1"
+
+tracing = "0.1.41"
+tracing-subscriber = "0.3.19"
+
+winit = "0.30.9"
+
+image = "0.25.5"
+gltf = { version = "1.4.1", features = ["extras", "names", "import"] }
+
+bytemuck = { version = "1.21.0", features = ["derive"] }
+base64 = "0.22.1"
+
+bevy_ecs = "0.15.3"
+downcast-rs = "2.0.1"
+thiserror = "2.0.11"
+anyhow = "1.0.95"
