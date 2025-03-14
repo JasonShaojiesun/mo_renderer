@@ -1,4 +1,4 @@
-use crate::BufferPassTrait;
+use crate::RenderPassTrait;
 use bevy_ecs::prelude::World;
 use mo_vk::{Texture, TextureCreateInfo, VULKAN, VulkanoWindowRenderer};
 use std::sync::Arc;
@@ -72,7 +72,7 @@ impl SSAOPass {
     }
 }
 
-impl BufferPassTrait for SSAOPass {
+impl RenderPassTrait for SSAOPass {
     fn render(
         &mut self,
         _image_idx: u32,

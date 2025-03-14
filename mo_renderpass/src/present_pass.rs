@@ -1,4 +1,4 @@
-use crate::BufferPassTrait;
+use crate::RenderPassTrait;
 use bevy_ecs::prelude::World;
 use mo_ecs::resource::GlobalSamplers;
 use mo_vk::{Texture, VulkanoWindowRenderer, VULKAN};
@@ -148,7 +148,7 @@ impl PresentPass {
     }
 }
 
-impl BufferPassTrait for PresentPass {
+impl RenderPassTrait for PresentPass {
     fn render(
         &mut self,
         image_idx: u32,

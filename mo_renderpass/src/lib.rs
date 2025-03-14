@@ -13,6 +13,8 @@ pub use shadow_pass::ShadowPass;
 pub mod ssao_pass;
 pub use ssao_pass::SSAOPass;
 
+pub mod utils;
+
 use bevy_ecs::prelude::*;
 use std::sync::Arc;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, PrimaryAutoCommandBuffer};
@@ -20,7 +22,7 @@ use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
 use vulkano::image::view::ImageView;
 use winit::dpi::PhysicalSize;
 
-pub trait BufferPassTrait {
+pub trait RenderPassTrait {
     /// Renders the current frame using the provided resources and world state.
     ///
     /// # Arguments

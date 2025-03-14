@@ -1,4 +1,4 @@
-use crate::BufferPassTrait;
+use crate::RenderPassTrait;
 use bevy_ecs::prelude::*;
 use mo_ecs::resource::GlobalSamplers;
 use mo_ecs::{
@@ -210,7 +210,7 @@ impl GBufferPass {
         let mut next_bindless_image_index = 0u32;
         let mut textures: Vec<(Arc<ImageView>, Arc<Sampler>)> = Vec::new();
 
-        let mut gpu_materials: Vec<vs::GpuMaterial> = Vec::new();
+        let mut gpu_materials: Vec<gbuffer_fs::GltfMaterialGPU> = Vec::new();
 
         let sampler = world.borrow().resource::<GlobalSamplers>().clamp.clone();
 
@@ -244,11 +244,11 @@ impl GBufferPass {
         }
 
         let pipeline = {
-            let vs = vs::load(VULKAN.device().clone())
+            let vs = gbuffer_vs::load(VULKAN.device().clone())
                 .unwrap()
                 .entry_point("main")
                 .unwrap();
-            let fs = fs::load(VULKAN.device().clone())
+            let fs = gbuffer_fs::load(VULKAN.device().clone())
                 .unwrap()
                 .entry_point("main")
                 .unwrap();
@@ -329,7 +329,7 @@ impl GBufferPass {
                     push_constant_ranges: vec![PushConstantRange {
                         stages: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
                         offset: 0,
-                        size: size_of::<vs::PushConsts>() as u32,
+                        size: size_of::<gbuffer_vs::PushConsts>() as u32,
                     }],
                     ..Default::default()
                 },
@@ -447,7 +447,7 @@ impl GBufferPass {
     }
 }
 
-impl BufferPassTrait for GBufferPass {
+impl RenderPassTrait for GBufferPass {
     fn render(
         &mut self,
         _image_idx: u32,
@@ -458,7 +458,7 @@ impl BufferPassTrait for GBufferPass {
         let camera = world.resource::<Camera>();
 
         let uniform_buffer_subbuffer = {
-            let uniform_data = vs::UBO_projview {
+            let uniform_data = gbuffer_vs::UBO_projview {
                 projection: camera.projection().to_cols_array_2d(),
                 view: camera.view().to_cols_array_2d(),
                 prev_view: camera.prev_view().to_cols_array_2d(),
@@ -525,7 +525,7 @@ impl BufferPassTrait for GBufferPass {
                         .push_constants(
                             self.gbuffer_pipeline.layout().clone(),
                             0,
-                            vs::PushConsts {
+                            gbuffer_vs::PushConsts {
                                 world: world_matrix.to_cols_array_2d(),
                                 mat_index: mesh.gpu_mat_index.into(),
                                 normal_matrix: normal_matrix.to_cols_array_2d(),
@@ -589,7 +589,7 @@ fn recreate_framebuffer(
     .unwrap()
 }
 
-mod vs {
+mod gbuffer_vs {
     vulkano_shaders::shader! {
         ty: "vertex",
         path: "../resources/shaders/gbuffer.vert",
@@ -598,7 +598,7 @@ mod vs {
     }
 }
 
-mod fs {
+pub mod gbuffer_fs {
     vulkano_shaders::shader! {
         ty: "fragment",
         path: "../resources/shaders/gbuffer.frag",
@@ -652,7 +652,7 @@ fn add_default_textures(
 }
 
 fn add_model(
-    gpu_materials: &mut Vec<vs::GpuMaterial>,
+    gpu_materials: &mut Vec<gbuffer_fs::GltfMaterialGPU>,
     model: &mut Model,
     default_diffuse_map_index: u32,
     default_normal_map_index: u32,
@@ -667,51 +667,51 @@ fn add_model(
     // also update the mappings for each primitive to be indexes corresponding
     // to the ordering in the bindless descriptor set texture array.
     for mesh in &mut model.meshes {
-        let diffuse_bindless_index = match mesh.material.base_color_map {
+        let diffuse_bindless_index = match mesh.material.base_color_texture {
             DEFAULT_TEXTURE_MAP => default_diffuse_map_index,
             _ => add_bindless_texture(
                 textures,
-                &model.textures[mesh.material.base_color_map as usize],
+                &model.textures[mesh.material.base_color_texture as usize],
                 sampler,
                 next_bindless_image_index,
             ),
         };
 
-        let normal_bindless_index = match mesh.material.normal_map {
+        let normal_bindless_index = match mesh.material.normal_texture {
             DEFAULT_TEXTURE_MAP => default_normal_map_index,
             _ => add_bindless_texture(
                 textures,
-                &model.textures[mesh.material.normal_map as usize],
+                &model.textures[mesh.material.normal_texture as usize],
                 sampler,
                 next_bindless_image_index,
             ),
         };
 
-        let metallic_roughness_bindless_index = match mesh.material.metallic_roughness_map {
+        let metallic_roughness_bindless_index = match mesh.material.surface_properties_texture {
             DEFAULT_TEXTURE_MAP => default_metallic_roughness_map_index,
             _ => add_bindless_texture(
                 textures,
-                &model.textures[mesh.material.metallic_roughness_map as usize],
+                &model.textures[mesh.material.surface_properties_texture as usize],
                 sampler,
                 next_bindless_image_index,
             ),
         };
 
-        let occlusion_bindless_index = match mesh.material.occlusion_map {
+        let occlusion_bindless_index = match mesh.material.occlusion_texture {
             DEFAULT_TEXTURE_MAP => default_occlusion_map_index,
             _ => add_bindless_texture(
                 textures,
-                &model.textures[mesh.material.occlusion_map as usize],
+                &model.textures[mesh.material.occlusion_texture as usize],
                 sampler,
                 next_bindless_image_index,
             ),
         };
 
-        let emissive_bindless_index = match mesh.material.emissive_map {
+        let emissive_bindless_index = match mesh.material.emissive_texture {
             DEFAULT_TEXTURE_MAP => default_black_map_index,
             _ => add_bindless_texture(
                 textures,
-                &model.textures[mesh.material.emissive_map as usize],
+                &model.textures[mesh.material.emissive_texture as usize],
                 sampler,
                 next_bindless_image_index,
             ),
@@ -719,38 +719,33 @@ fn add_model(
 
         let material_index = add_material(
             gpu_materials,
-            vs::GpuMaterial {
+            gbuffer_fs::GltfMaterialGPU {
                 base_color_map: diffuse_bindless_index,
                 normal_map: normal_bindless_index,
                 metallic_roughness_map: metallic_roughness_bindless_index,
                 occlusion_map: occlusion_bindless_index,
                 emissive_map: emissive_bindless_index,
                 // UV sets
-                base_color_uv_set: mesh.material.base_color_uv_set,
-                normal_uv_set: mesh.material.normal_uv_set,
-                metallic_roughness_uv_set: mesh.material.metallic_roughness_uv_set,
-                occlusion_uv_set: mesh.material.occlusion_uv_set,
-                emissive_uv_set: mesh.material.emissive_uv_set,
+                base_color_uv_set: mesh.material.base_color_uv,
+                normal_uv_set: mesh.material.normal_uv,
+                metallic_roughness_uv_set: mesh.material.surface_properties_uv,
+                occlusion_uv_set: mesh.material.occlusion_uv,
+                emissive_uv_set: mesh.material.emissive_uv,
                 padding: [0.0; 2],
                 // Factors
                 base_color_factor: mesh.material.base_color_factor.into(),
                 emissive_factor: [
-                    mesh.material.emissive_factor.x,
-                    mesh.material.emissive_factor.y,
-                    mesh.material.emissive_factor.z,
+                    mesh.material.emissive_factor_alpha_cutoff.x,
+                    mesh.material.emissive_factor_alpha_cutoff.y,
+                    mesh.material.emissive_factor_alpha_cutoff.z,
                     1.0,
                 ],
-                metallic_factor: mesh.material.metallic_factor,
-                roughness_factor: mesh.material.roughness_factor,
+                metallic_factor: mesh.material.ormn.z,
+                roughness_factor: mesh.material.ormn.y,
                 // alpha
                 alpha_mode: mesh.material.alpha_mode as u32,
-                alpha_cutoff: mesh.material.alpha_cutoff,
-                raytrace_properties: [
-                    mesh.material.material_type as f32,
-                    mesh.material.material_property,
-                    0.0,
-                    0.0,
-                ],
+                alpha_cutoff: mesh.material.emissive_factor_alpha_cutoff.w,
+                raytrace_properties: [0.0, 0.0, 0.0, 0.0],
             },
         );
 
@@ -772,7 +767,10 @@ fn add_bindless_texture(
     index
 }
 
-fn add_material(gpu_materials: &mut Vec<vs::GpuMaterial>, gpu_material: vs::GpuMaterial) -> u32 {
+fn add_material(
+    gpu_materials: &mut Vec<gbuffer_fs::GltfMaterialGPU>,
+    gpu_material: gbuffer_fs::GltfMaterialGPU,
+) -> u32 {
     let material_index = gpu_materials.len() as u32;
     gpu_materials.push(gpu_material);
 

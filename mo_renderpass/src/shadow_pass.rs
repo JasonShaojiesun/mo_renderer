@@ -1,4 +1,4 @@
-use crate::BufferPassTrait;
+use crate::RenderPassTrait;
 use bevy_ecs::prelude::*;
 use bevy_math::Mat4;
 use mo_ecs::component::{DirectionalLight, Transform};
@@ -185,7 +185,7 @@ impl ShadowPass {
     }
 }
 
-impl BufferPassTrait for ShadowPass {
+impl RenderPassTrait for ShadowPass {
     fn render(
         &mut self,
         _image_idx: u32,

@@ -30,7 +30,7 @@ layout (push_constant) uniform PushConsts {
 } pushConsts;
 
 void main() {
-    GpuMaterial material = materialsSSBO.materials[pushConsts.mat_index];
+    GltfMaterialGPU material = materialsSSBO.materials[pushConsts.mat_index];
 
     vec2 base_color_uv = material.base_color_uv_set == 0 ? uv0 : uv1;
     vec4 diffuse_color = texture(nonuniformEXT(sampledTextures[material.base_color_map]), base_color_uv);

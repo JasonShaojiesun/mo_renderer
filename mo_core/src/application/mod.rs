@@ -2,7 +2,7 @@ use crate::application::plugin::{PluginState, PluginTrait};
 use anyhow::Result;
 use bevy_ecs::prelude::*;
 use mo_ecs::resource::{Camera, Input};
-use mo_renderpass::{BufferPassTrait, GBufferPass, PresentPass, SSAOPass, ShadingPass, ShadowPass};
+use mo_renderpass::{RenderPassTrait, GBufferPass, PresentPass, SSAOPass, ShadingPass, ShadowPass};
 use mo_vk::{VulkanoWindows, WindowDescriptor, VULKAN};
 use std::{cell::RefCell, sync::Arc, time::Duration};
 use thiserror::Error;
@@ -33,7 +33,7 @@ pub struct App {
     descriptor_set_allocator: Arc<StandardDescriptorSetAllocator>,
 
     // Render pass
-    render_passes: RefCell<Vec<Box<dyn BufferPassTrait>>>,
+    render_passes: RefCell<Vec<Box<dyn RenderPassTrait>>>,
 }
 
 #[derive(Debug, Error)]
@@ -104,7 +104,7 @@ impl App {
         self.runtime_schedule.add_systems(system);
     }
 
-    pub fn add_render_pass(&self, render_pass: Box<dyn BufferPassTrait>) {
+    pub fn add_render_pass(&self, render_pass: Box<dyn RenderPassTrait>) {
         self.render_passes.borrow_mut().push(render_pass);
     }
 

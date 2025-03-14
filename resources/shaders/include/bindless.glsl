@@ -1,7 +1,7 @@
 #ifndef SHADER_INCLUDE_BINDLESS
 #define SHADER_INCLUDE_BINDLESS
 
-struct GpuMaterial
+struct GltfMaterialGPU
 {
     uint base_color_map;
     uint normal_map;
@@ -32,7 +32,7 @@ layout (set = 0, binding = 0) uniform sampler2D sampledTextures[];
 
 layout (set = 1, binding = 0) readonly buffer MaterialsSSBO
 {
-    GpuMaterial materials[];
+    GltfMaterialGPU materials[];
 } materialsSSBO;
 
 layout (std140, set = 2, binding = 0) uniform UBO_projview

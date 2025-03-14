@@ -1,4 +1,4 @@
-use crate::{BufferPassTrait, GBufferTextures};
+use crate::{RenderPassTrait, GBufferTextures};
 use bevy_ecs::prelude::*;
 use bevy_math::prelude::*;
 use mo_ecs::resource::{GlobalSamplers, IBLResource};
@@ -176,7 +176,7 @@ impl ShadingPass {
     }
 }
 
-impl BufferPassTrait for ShadingPass {
+impl RenderPassTrait for ShadingPass {
     fn render(
         &mut self,
         _image_idx: u32,

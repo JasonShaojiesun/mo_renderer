@@ -3,7 +3,7 @@ use mo_vk::VULKAN;
 use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::pipeline::graphics::vertex_input::Vertex;
-use crate::model::Material;
+use crate::model::GltfMaterialCPU;
 
 #[derive(BufferContents, Vertex, Clone, Copy)]
 #[repr(C)]
@@ -44,7 +44,7 @@ pub struct MeshPrimitive {
 
 pub struct Mesh {
     pub primitive: MeshPrimitive,
-    pub material: Material,
+    pub material: GltfMaterialCPU,
     pub gpu_mat_index: u32,
     pub world: Mat4,
 }

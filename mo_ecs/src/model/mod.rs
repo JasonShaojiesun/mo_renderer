@@ -18,178 +18,6 @@ pub struct Model {
 }
 
 impl Model {
-    pub fn load_node(
-        gltf: &gltf::Document,
-        node: &gltf::Node,
-        model: &mut Model,
-        buffers: &[gltf::buffer::Data],
-        parent_transform: Mat4,
-        path: std::path::PathBuf,
-    ) {
-        let node_transform =
-            parent_transform * Mat4::from_cols_array_2d(&node.transform().matrix());
-
-        for child in node.children() {
-            Model::load_node(gltf, &child, model, buffers, node_transform, path.clone());
-        }
-
-        if let Some(mesh) = node.mesh() {
-            for primitive in mesh.primitives() {
-                let reader = primitive.reader(|i| Some(&buffers[i.index()]));
-
-                let indices: Vec<_> = reader.read_indices().unwrap().into_u32().collect();
-                let positions: Vec<_> = reader.read_positions().unwrap().map(Vec3::from).collect();
-                let normals: Vec<_> = reader.read_normals().unwrap().map(Vec3::from).collect();
-                let tex_coords0 = if let Some(tex_coords) = reader.read_tex_coords(0) {
-                    tex_coords.into_f32().map(Vec2::from).collect()
-                } else {
-                    vec![Vec2::new(0.0, 0.0); positions.len()]
-                };
-
-                let tex_coords1 = if let Some(tex_coords1) = reader.read_tex_coords(1) {
-                    tex_coords1.into_f32().map(Vec2::from).collect()
-                } else {
-                    vec![Vec2::new(0.0, 0.0); positions.len()]
-                };
-
-                let tangents = if let Some(tangents) = reader.read_tangents() {
-                    tangents.map(Vec4::from).collect()
-                } else {
-                    vec![Vec4::new(0.0, 0.0, 0.0, 0.0); positions.len()]
-                };
-
-                let colors: Vec<_> = if let Some(colors) = reader.read_colors(0) {
-                    colors.into_rgba_f32().map(Vec4::from).collect()
-                } else {
-                    vec![Vec4::new(1.0, 1.0, 1.0, 1.0); positions.len()]
-                };
-
-                let mut vertices: Vec<StaticVertex> = vec![];
-
-                for (i, _) in positions.iter().enumerate() {
-                    vertices.push(StaticVertex {
-                        position: positions[i].extend(0.0).into(),
-                        normal: normals[i].extend(0.0).into(),
-                        uv0: tex_coords0[i].into(),
-                        uv1: tex_coords1[i].into(),
-                        tangent: tangents[i].into(),
-                        color: colors[i].into(),
-                    });
-                }
-
-                let material = primitive.material();
-                let pbr = material.pbr_metallic_roughness();
-
-                let get_texture_index = |texture_info: Option<gltf::texture::Info>| {
-                    texture_info
-                        .and_then(|tex| {
-                            // 先获取texture索引
-                            let texture_idx = tex.texture().index();
-                            // 再通过texture获取对应的image索引
-                            gltf.textures()
-                                .nth(texture_idx)
-                                .and_then(|t| Some(t.source().index()))
-                        })
-                        .map(|image_idx| image_idx as u32)
-                        .unwrap_or(DEFAULT_TEXTURE_MAP)
-                };
-
-                let diffuse_index = get_texture_index(pbr.base_color_texture());
-                let metallic_roughness_index = get_texture_index(pbr.metallic_roughness_texture());
-                let emissive_index = get_texture_index(material.emissive_texture());
-
-                let normal_index = material
-                    .normal_texture()
-                    .and_then(|tex| {
-                        // 先获取texture索引
-                        let texture_idx = tex.texture().index();
-                        // 再通过texture获取对应的image索引
-                        gltf.textures()
-                            .nth(texture_idx)
-                            .and_then(|t| Some(t.source().index()))
-                    })
-                    .map(|image_idx| image_idx as u32)
-                    .unwrap_or(DEFAULT_TEXTURE_MAP);
-                let occlusion_index = material
-                    .occlusion_texture()
-                    .and_then(|tex| {
-                        // 先获取texture索引
-                        let texture_idx = tex.texture().index();
-                        // 再通过texture获取对应的image索引
-                        gltf.textures()
-                            .nth(texture_idx)
-                            .and_then(|t| Some(t.source().index()))
-                    })
-                    .map(|image_idx| image_idx as u32)
-                    .unwrap_or(DEFAULT_TEXTURE_MAP);
-
-                let base_color_factor = material.pbr_metallic_roughness().base_color_factor();
-                let metallic_factor = material.pbr_metallic_roughness().metallic_factor();
-                let roughness_factor = material.pbr_metallic_roughness().roughness_factor();
-                let emissive_factor = material.emissive_factor();
-
-                let mut alpha_cutoff = 0.0f32;
-                // 在primitive处理部分添加：
-                let alpha_mode = match material.alpha_mode() {
-                    gltf::material::AlphaMode::Opaque => AlphaMode::Opaque,
-                    gltf::material::AlphaMode::Mask => {
-                        alpha_cutoff = material.alpha_cutoff().unwrap_or(0.5);
-                        AlphaMode::Mask
-                    }
-                    gltf::material::AlphaMode::Blend => AlphaMode::Blend,
-                };
-
-                // 在load_node的primitive处理部分补充：
-                let base_color_tex_info = pbr.base_color_texture();
-                let base_color_uv_set = base_color_tex_info.map(|t| t.tex_coord()).unwrap_or(0);
-
-                let normal_tex_info = material.normal_texture();
-                let normal_uv_set = normal_tex_info.map(|t| t.tex_coord()).unwrap_or(0);
-
-                let metallic_roughness_tex_info = pbr.metallic_roughness_texture();
-                let metallic_roughness_uv_set = metallic_roughness_tex_info
-                    .map(|t| t.tex_coord())
-                    .unwrap_or(0);
-
-                let occlusion_tex_info = material.occlusion_texture();
-                let occlusion_uv_set = occlusion_tex_info.map(|t| t.tex_coord()).unwrap_or(0);
-
-                let emissive_tex_info = material.emissive_texture();
-                let emissive_uv_set = emissive_tex_info.map(|t| t.tex_coord()).unwrap_or(0);
-
-                model.meshes.push(Mesh {
-                    primitive: MeshPrimitive::new(indices, vertices),
-                    material: Material {
-                        // Texture IDs
-                        base_color_map: diffuse_index,
-                        normal_map: normal_index,
-                        metallic_roughness_map: metallic_roughness_index,
-                        occlusion_map: occlusion_index,
-                        emissive_map: emissive_index,
-                        // UV Sets
-                        base_color_uv_set,
-                        normal_uv_set,
-                        metallic_roughness_uv_set,
-                        occlusion_uv_set,
-                        emissive_uv_set,
-                        // Alpha Mode
-                        alpha_mode,
-                        alpha_cutoff,
-                        // Color Factors
-                        base_color_factor: Vec4::from(base_color_factor),
-                        metallic_factor,
-                        roughness_factor,
-                        emissive_factor: emissive_factor.into(),
-                        // Raytracing properties
-                        material_type: 0,
-                        material_property: 0.0,
-                    },
-                    gpu_mat_index: 0,
-                    world: node_transform,
-                });
-            }
-        }
-    }
     pub fn load_gltf(path: &str) -> Model {
         let root = std::env::current_dir().expect("Current working directory must be accessible");
         let path_buf = root.join("resources").join("gltf").join(path);
@@ -263,5 +91,180 @@ impl Model {
         }
 
         model
+    }
+
+    pub fn load_node(
+        gltf: &gltf::Document,
+        node: &gltf::Node,
+        model: &mut Model,
+        buffers: &[gltf::buffer::Data],
+        parent_transform: Mat4,
+        path: std::path::PathBuf,
+    ) {
+        let node_transform =
+            parent_transform * Mat4::from_cols_array_2d(&node.transform().matrix());
+
+        for child in node.children() {
+            Model::load_node(gltf, &child, model, buffers, node_transform, path.clone());
+        }
+
+        if let Some(mesh) = node.mesh() {
+            for primitive in mesh.primitives() {
+                // ================================= Loading vertices =================================
+                let reader = primitive.reader(|i| Some(&buffers[i.index()]));
+
+                let indices: Vec<_> = reader.read_indices().unwrap().into_u32().collect();
+                let positions: Vec<_> = reader.read_positions().unwrap().map(Vec3::from).collect();
+                let normals: Vec<_> = reader.read_normals().unwrap().map(Vec3::from).collect();
+                let tex_coords0 = if let Some(tex_coords) = reader.read_tex_coords(0) {
+                    tex_coords.into_f32().map(Vec2::from).collect()
+                } else {
+                    vec![Vec2::new(0.0, 0.0); positions.len()]
+                };
+
+                let tex_coords1 = if let Some(tex_coords1) = reader.read_tex_coords(1) {
+                    tex_coords1.into_f32().map(Vec2::from).collect()
+                } else {
+                    vec![Vec2::new(0.0, 0.0); positions.len()]
+                };
+
+                let tangents = if let Some(tangents) = reader.read_tangents() {
+                    tangents.map(Vec4::from).collect()
+                } else {
+                    vec![Vec4::new(0.0, 0.0, 0.0, 0.0); positions.len()]
+                };
+
+                let colors: Vec<_> = if let Some(colors) = reader.read_colors(0) {
+                    colors.into_rgba_f32().map(Vec4::from).collect()
+                } else {
+                    vec![Vec4::new(1.0, 1.0, 1.0, 1.0); positions.len()]
+                };
+
+                let mut vertices: Vec<StaticVertex> = vec![];
+
+                for (i, _) in positions.iter().enumerate() {
+                    vertices.push(StaticVertex {
+                        position: positions[i].extend(0.0).into(),
+                        normal: normals[i].extend(0.0).into(),
+                        uv0: tex_coords0[i].into(),
+                        uv1: tex_coords1[i].into(),
+                        tangent: tangents[i].into(),
+                        color: colors[i].into(),
+                    });
+                }
+
+                // ================================= End Loading vertices =================================
+                // ================================= Start Loading materials =================================
+
+                let material = primitive.material();
+                let pbr = material.pbr_metallic_roughness();
+
+                let get_texture_index = |texture_info: Option<gltf::texture::Info>| {
+                    texture_info
+                        .and_then(|tex| {
+                            // 先获取texture索引
+                            let texture_idx = tex.texture().index();
+                            // 再通过texture获取对应的image索引
+                            gltf.textures()
+                                .nth(texture_idx)
+                                .and_then(|t| Some(t.source().index()))
+                        })
+                        .map(|image_idx| image_idx as u32)
+                        .unwrap_or(DEFAULT_TEXTURE_MAP)
+                };
+
+                let diffuse_index = get_texture_index(pbr.base_color_texture());
+                let metallic_roughness_index = get_texture_index(pbr.metallic_roughness_texture());
+                let emissive_index = get_texture_index(material.emissive_texture());
+
+                let normal_index = material
+                    .normal_texture()
+                    .and_then(|tex| {
+                        // 先获取texture索引
+                        let texture_idx = tex.texture().index();
+                        // 再通过texture获取对应的image索引
+                        gltf.textures()
+                            .nth(texture_idx)
+                            .and_then(|t| Some(t.source().index()))
+                    })
+                    .map(|image_idx| image_idx as u32)
+                    .unwrap_or(DEFAULT_TEXTURE_MAP);
+                let occlusion_index = material
+                    .occlusion_texture()
+                    .and_then(|tex| {
+                        // 先获取texture索引
+                        let texture_idx = tex.texture().index();
+                        // 再通过texture获取对应的image索引
+                        gltf.textures()
+                            .nth(texture_idx)
+                            .and_then(|t| Some(t.source().index()))
+                    })
+                    .map(|image_idx| image_idx as u32)
+                    .unwrap_or(DEFAULT_TEXTURE_MAP);
+
+                let base_color_factor = material.pbr_metallic_roughness().base_color_factor();
+                let metallic_factor = material.pbr_metallic_roughness().metallic_factor();
+                let roughness_factor = material.pbr_metallic_roughness().roughness_factor();
+                let emissive_factor: Vec3 = material.emissive_factor().into();
+
+                let mut alpha_cutoff = 0.0f32;
+                // 在primitive处理部分添加：
+                let alpha_mode = match material.alpha_mode() {
+                    gltf::material::AlphaMode::Opaque => AlphaMode::Opaque,
+                    gltf::material::AlphaMode::Mask => {
+                        alpha_cutoff = material.alpha_cutoff().unwrap_or(0.5);
+                        AlphaMode::Mask
+                    }
+                    gltf::material::AlphaMode::Blend => AlphaMode::Blend,
+                };
+
+                // 在load_node的primitive处理部分补充：
+                let base_color_tex_info = pbr.base_color_texture();
+                let base_color_uv_set = base_color_tex_info.map(|t| t.tex_coord()).unwrap_or(0);
+
+                let normal_tex_info = material.normal_texture();
+                let normal_uv_set = normal_tex_info.map(|t| t.tex_coord()).unwrap_or(0);
+
+                let metallic_roughness_tex_info = pbr.metallic_roughness_texture();
+                let metallic_roughness_uv_set = metallic_roughness_tex_info
+                    .map(|t| t.tex_coord())
+                    .unwrap_or(0);
+
+                let occlusion_tex_info = material.occlusion_texture();
+                let occlusion_uv_set = occlusion_tex_info.map(|t| t.tex_coord()).unwrap_or(0);
+
+                let emissive_tex_info = material.emissive_texture();
+                let emissive_uv_set = emissive_tex_info.map(|t| t.tex_coord()).unwrap_or(0);
+
+                model.meshes.push(Mesh {
+                    primitive: MeshPrimitive::new(indices, vertices),
+                    material: GltfMaterialCPU {
+                        // Texture IDs
+                        base_color_texture: diffuse_index,
+                        normal_texture: normal_index,
+                        surface_properties_texture: metallic_roughness_index,
+                        occlusion_texture: occlusion_index,
+                        emissive_texture: emissive_index,
+                        // UV Sets
+                        base_color_uv: base_color_uv_set,
+                        normal_uv: normal_uv_set,
+                        surface_properties_uv: metallic_roughness_uv_set,
+                        occlusion_uv: occlusion_uv_set,
+                        emissive_uv: emissive_uv_set,
+                        // Alpha Mode
+                        alpha_mode,
+                        // Color Factors
+                        base_color_factor: Vec4::from(base_color_factor),
+                        ormn: Vec4::new(1.0, roughness_factor, metallic_factor, 1.0),
+                        emissive_factor_alpha_cutoff: (emissive_factor, alpha_cutoff).into(),
+                        // Raytracing properties
+                        material_type: MaterialType::MetallicRoughness,
+                        ..Default::default()
+                    },
+                    gpu_mat_index: 0,
+                    world: node_transform,
+                });
+            }
+        }
     }
 }
