@@ -21,7 +21,7 @@ winit = { version = "0.30.9", features = ["rwh_06"] }
 foldhash = "0.1.4"
 
 image = "0.25.5"
-gltf = { version = "1.4.1", features = [
+gltf = { git = "https://github.com/JasonShaojiesun/mo_gltf", branch = "sheen_clearcoat", features = [
     "KHR_materials_pbrSpecularGlossiness",
     "KHR_lights_punctual",
     "KHR_materials_transmission",
@@ -31,6 +31,8 @@ gltf = { version = "1.4.1", features = [
     "KHR_materials_volume",
     "KHR_materials_unlit",
     "KHR_materials_emissive_strength",
+    "KHR_materials_clearcoat",
+    "KHR_materials_sheen",
     "KHR_texture_transform",
     "extras",
     "extensions",
