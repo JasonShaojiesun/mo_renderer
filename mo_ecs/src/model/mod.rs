@@ -3,7 +3,10 @@ use bevy_math::{Mat4, Vec2, Vec3, Vec4};
 use mo_vk::{Texture, TextureCreateInfo};
 use vulkano::format::Format;
 
+pub mod material;
 pub mod primitives;
+
+pub use material::*;
 pub use primitives::*;
 
 pub const DEFAULT_TEXTURE_MAP: u32 = u32::MAX;
@@ -77,18 +80,23 @@ impl Model {
                 let material = primitive.material();
                 let pbr = material.pbr_metallic_roughness();
 
-                let diffuse_index = pbr
-                    .base_color_texture()
-                    .and_then(|tex| {
-                        // 先获取texture索引
-                        let texture_idx = tex.texture().index();
-                        // 再通过texture获取对应的image索引
-                        gltf.textures()
-                            .nth(texture_idx)
-                            .and_then(|t| Some(t.source().index()))
-                    })
-                    .map(|image_idx| image_idx as u32)
-                    .unwrap_or(DEFAULT_TEXTURE_MAP);
+                let get_texture_index = |texture_info: Option<gltf::texture::Info>| {
+                    texture_info
+                        .and_then(|tex| {
+                            // 先获取texture索引
+                            let texture_idx = tex.texture().index();
+                            // 再通过texture获取对应的image索引
+                            gltf.textures()
+                                .nth(texture_idx)
+                                .and_then(|t| Some(t.source().index()))
+                        })
+                        .map(|image_idx| image_idx as u32)
+                        .unwrap_or(DEFAULT_TEXTURE_MAP)
+                };
+
+                let diffuse_index = get_texture_index(pbr.base_color_texture());
+                let metallic_roughness_index = get_texture_index(pbr.metallic_roughness_texture());
+                let emissive_index = get_texture_index(material.emissive_texture());
 
                 let normal_index = material
                     .normal_texture()
@@ -102,35 +110,8 @@ impl Model {
                     })
                     .map(|image_idx| image_idx as u32)
                     .unwrap_or(DEFAULT_TEXTURE_MAP);
-
-                let metallic_roughness_index = pbr
-                    .metallic_roughness_texture()
-                    .and_then(|tex| {
-                        // 先获取texture索引
-                        let texture_idx = tex.texture().index();
-                        // 再通过texture获取对应的image索引
-                        gltf.textures()
-                            .nth(texture_idx)
-                            .and_then(|t| Some(t.source().index()))
-                    })
-                    .map(|image_idx| image_idx as u32)
-                    .unwrap_or(DEFAULT_TEXTURE_MAP);
-
                 let occlusion_index = material
                     .occlusion_texture()
-                    .and_then(|tex| {
-                        // 先获取texture索引
-                        let texture_idx = tex.texture().index();
-                        // 再通过texture获取对应的image索引
-                        gltf.textures()
-                            .nth(texture_idx)
-                            .and_then(|t| Some(t.source().index()))
-                    })
-                    .map(|image_idx| image_idx as u32)
-                    .unwrap_or(DEFAULT_TEXTURE_MAP);
-
-                let emissive_index = material
-                    .emissive_texture()
                     .and_then(|tex| {
                         // 先获取texture索引
                         let texture_idx = tex.texture().index();
