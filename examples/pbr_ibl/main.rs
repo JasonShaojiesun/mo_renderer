@@ -17,17 +17,18 @@ fn main() {
     app.init_resource::<Timer>();
     app.init_resource::<Input>();
 
-    let camera = Camera::new(
-        Vec3::new(-3.0, 0.0, 3.0),
-        Quat::from_axis_angle(Vec3::Y, PI * 0.75),
-    );
-    app.insert_resource::<Camera>(camera);
     app.init_resource::<DefaultTextures>();
     app.init_resource::<IBLResource>();
     app.init_resource::<GlobalSamplers>();
 
     app.add_runtime_system(Timer::update_timer);
     app.add_runtime_system(Camera::update_camera);
+
+    let camera = Camera::new(
+        Vec3::new(-3.0, 0.0, 3.0),
+        Quat::from_axis_angle(Vec3::Y, PI * 0.75),
+    );
+    app.insert_resource::<Camera>(camera);
 
     app.add_entity((
         Transform::from_xyz(0.0, 0.0, 0.0),

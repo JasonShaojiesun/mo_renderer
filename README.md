@@ -9,7 +9,7 @@ WASD for moving, hold right mouse button to look around
 ## Run
 
 ```bash
-cargo run --example app_test
+cargo run --example pbr_ibl
 ```
 
 ## Features
